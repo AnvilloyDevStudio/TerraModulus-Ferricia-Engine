@@ -1,3 +1,6 @@
 [submodule "ode-src"]
 	path = ode/ode-src
 	url = https://bitbucket.org/odedevs/ode
+[submodule "openal-soft/openal-soft-src"]
+	path = openal-soft/openal-soft-src
+	url = https://github.com/kcat/openal-soft
