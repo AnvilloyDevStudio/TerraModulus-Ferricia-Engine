@@ -1,0 +1,12 @@
+[package]
+name = "ode"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85.0"
+
+[dependencies]
+
+[build-dependencies]
+cmake = "0.1.54"
+cc = "1.2.23"
+bindgen = "0.71.1"

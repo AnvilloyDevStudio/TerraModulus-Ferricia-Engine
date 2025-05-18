@@ -1,0 +1,3 @@
+[submodule "ode-src"]
+	path = ode/ode-src
+	url = https://bitbucket.org/odedevs/ode
