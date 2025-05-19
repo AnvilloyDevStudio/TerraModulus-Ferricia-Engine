@@ -8,10 +8,12 @@ use std::path::PathBuf;
 fn main() {
 	let dst = cmake::Config::new("ode-src")
 		.define("ODE_WITH_DEMOS", "OFF")
+		.define("ODE_WITH_TESTS", "OFF")
+		.define("ODE_WIN32_LIB_OUTPUT_NAME_BASED_ON_FLOAT_SIZE", "OFF")
 		.build();
 
-	println!("cargo:rustc-link-search=native={}", dst.display());
-	println!("cargo:rustc-link-lib=ode");
+	println!("cargo:rustc-link-search=native={}", dst.join("lib").display());
+	println!("cargo:rustc-link-lib=oded"); // debug build
 
 	let bindings = bindgen::Builder::default()
 		.headers(fs::read_dir(dst.join("include/ode").to_str().unwrap()).unwrap()

@@ -10,8 +10,8 @@ fn main() {
 		.define("ODE_WITH_DEMOS", "OFF")
 		.build();
 
-	println!("cargo:rustc-link-search=native={}", dst.display());
-	println!("cargo:rustc-link-lib=OpenAL32");
+	println!("cargo:rustc-link-search=native={}", dst.join("lib").display());
+	println!("cargo:rustc-link-lib=abcxyz");
 
 	let bindings = bindgen::Builder::default()
 		.headers(fs::read_dir(dst.join("include/AL").to_str().unwrap()).unwrap()
