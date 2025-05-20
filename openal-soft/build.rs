@@ -39,7 +39,7 @@ fn main() {
 		"openal"
 	};
 	println!("cargo:rustc-link-lib={lib_name}");
-	let src_file = canonicalize(dst.join(if cfg!(windows) {
+	let mut src_file = dst.join(if cfg!(windows) {
 		"bin"
 	} else {
 		"lib"
@@ -55,7 +55,10 @@ fn main() {
 		"so"
 	} else {
 		unimplemented!("Unsupported OS");
-	}))).unwrap();
+	}));
+	if cfg!(unix) {
+		src_file = src_file.read_link().unwrap()
+	};
 	copy(&src_file, top_level_cargo_target_dir().join(src_file.file_name().unwrap())).unwrap();
 
 	let bindings = bindgen::Builder::default()

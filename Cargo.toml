@@ -5,13 +5,13 @@ edition = "2024"
 rust-version = "1.85.0"
 
 [lib]
-name = "ferricia_engine"
+name = "ferricia"
 crate-type = ["cdylib"]
 
 [dependencies]
 opusic-sys = "0.5.5"
 libflac-sys = "0.3"
-sdl3 = { version = "0.14.27", features = ["build-from-source"] }
+sdl3 = { version = "0.14.27", features = ["build-from-source", "build-from-source-unix-console"] }
 ode-sys = { path = "ode" }
 openal-soft-sys = { path = "openal-soft" }
 gl = "0.14.0"
