@@ -23,7 +23,14 @@ pub extern "system" fn Java_terramodulus_engine_ferricia_Demo_hello(mut env: JNI
 
 #[allow(non_snake_case)]
 #[unsafe(no_mangle)]
-pub extern "system" fn Java_terramodulus_engine_ferricia_Demo_hey(mut env: JNIEnv, class: JClass, name: JString) {
+#[cfg(feature = "client")]
+pub extern "system" fn Java_terramodulus_engine_ferricia_Demo_clientOnly(mut env: JNIEnv, class: JClass) -> jint {
+	0
+}
+
+#[allow(non_snake_case)]
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_terramodulus_engine_ferricia_Demo_hey(mut env: JNIEnv, class: JClass) {
 	let sdl_context = sdl3::init().unwrap();
 	let video_subsystem = sdl_context.video().unwrap();
 
