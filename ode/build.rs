@@ -104,7 +104,7 @@ fn main() {
 		unimplemented!("Unsupported OS");
 	}));
 	if cfg!(unix) {
-		src_file = src_file.read_link().unwrap()
+		src_file = src_file.parent().unwrap().join(src_file.read_link().unwrap());
 	};
 	copy(&src_file, top_level_cargo_target_dir().join(src_file.file_name().unwrap())).unwrap();
 
