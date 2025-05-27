@@ -1,5 +1,7 @@
 # TerraModulus-Ferricia-Engine
 
+> [!NOTE]
+> This repository is standardized by [EFP 5](https://anvilloydevstudio.github.io/TerraModulus-EFPs/efp/efp005).
 
 ## Open Dynamics Engine (ODE)
 
