@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: LGPL-3.0-only
  */
 use std::{env, fs};
-use std::fs::{canonicalize, copy};
+use std::fs::copy;
 use std::path::PathBuf;
 
 /// Copied from https://github.com/maia-s/sdl3-sys-rs/blob/main/build-common.rs

@@ -6,7 +6,7 @@ use bindgen::callbacks::{MacroParsingBehavior, ParseCallbacks};
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::env;
-use std::fs::{canonicalize, copy};
+use std::fs::copy;
 
 // Source: https://github.com/rust-lang/rust-bindgen/issues/687#issuecomment-1312298570
 const IGNORE_MACROS: [&str; 20] = [
@@ -111,6 +111,7 @@ fn main() {
 	let bindings = bindgen::Builder::default()
 		.header(dst.join("include/ode/ode.h").to_string_lossy())
 		.parse_callbacks(Box::new(IgnoreMacros::new()))
+		.allowlist_function("d.*")
 		.clang_arg(format!("-I{}", dst.join("include").to_str().unwrap()))
 		.generate().unwrap();
 
