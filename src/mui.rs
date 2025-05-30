@@ -11,7 +11,8 @@ use crate::{FerriciaError, FerriciaResult};
 pub(crate) mod rendering;
 pub(crate) mod window;
 mod audio;
-mod openal;
+mod oal;
+mod ogl;
 
 pub(crate) struct SdlHandle {
 	audio: AudioSubsystem,
