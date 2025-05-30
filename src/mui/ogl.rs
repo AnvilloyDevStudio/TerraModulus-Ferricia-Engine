@@ -4,13 +4,13 @@
  */
 
 //! High level OpenGL
-//! 
+//!
 //! Current target minimal OpenGL version to support is **2.0**, with advanced features supported
 //! in newer versions used only in newer versions detected.
 
 use std::collections::HashSet;
 use gl::types::{GLubyte, GLuint};
-use gl::{GetIntegerv, GetString, GetStringi, EXTENSIONS, NUM_EXTENSIONS, RENDERER, SHADING_LANGUAGE_VERSION, VENDOR, VERSION};
+use gl::{Clear, ClearColor, GetIntegerv, GetString, GetStringi, Viewport, COLOR_BUFFER_BIT, EXTENSIONS, NUM_EXTENSIONS, RENDERER, SHADING_LANGUAGE_VERSION, VENDOR, VERSION};
 use regex::Regex;
 use sdl3::video::GLContext;
 use semver::Version;
@@ -20,7 +20,7 @@ use std::sync::LazyLock;
 use getset::Getters;
 
 #[derive(Getters)]
-pub(in crate::mui) struct GLHandle {
+pub(super) struct GLHandle {
 	gl_context: GLContext,
 	#[get = "pub"]
 	vendor: String,
@@ -52,6 +52,10 @@ impl GLHandle {
 			full_glsl_version,
 			extensions: get_extensions()
 		}
+	}
+	
+	pub(super) fn gl_viewport(&self, width: u32, height: u32) {
+		unsafe { Viewport(0, 0, width as i32, height as i32) }
 	}
 }
 

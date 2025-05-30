@@ -37,16 +37,18 @@ impl From<sdl3::IntegerOrSdlError> for FerriciaError {
 	}
 }
 
-pub(crate) fn init_sdl_handle() -> FerriciaResult<SdlHandle> {
-	let sdl_context = sdl3::init()?;
-	Ok(SdlHandle {
-		audio: sdl_context.audio()?,
-		events: sdl_context.event()?,
-		joystick: sdl_context.joystick()?,
-		haptic: sdl_context.haptic()?,
-		gamepad: sdl_context.gamepad()?,
-		video: sdl_context.video()?,
-		event_pump: sdl_context.event_pump()?,
-		sdl_context,
-	})
+impl SdlHandle {
+	pub(crate) fn new() -> FerriciaResult<SdlHandle> {
+		let sdl_context = sdl3::init()?;
+		Ok(Self {
+			audio: sdl_context.audio()?,
+			events: sdl_context.event()?,
+			joystick: sdl_context.joystick()?,
+			haptic: sdl_context.haptic()?,
+			gamepad: sdl_context.gamepad()?,
+			video: sdl_context.video()?,
+			event_pump: sdl_context.event_pump()?,
+			sdl_context,
+		})
+	}
 }
