@@ -4,20 +4,23 @@
  */
 
 #[cfg(feature = "client")]
-mod ui;
+mod mui;
 
 #[cfg(feature = "client")]
-use crate::ui::init_sdl_handle;
+use crate::mui::init_sdl_handle;
 #[cfg(feature = "client")]
-use crate::ui::window::init_window_handle;
+use crate::mui::window::init_window_handle;
 use derive_more::From;
 use jni::objects::{JClass, JString};
 use jni::sys::{jint, jlong, jstring};
 use jni::JNIEnv;
 use std::fmt::Display;
 use std::ptr::null;
-use crate::ui::SdlHandle;
-use crate::ui::window::WindowHandle;
+#[cfg(feature = "client")]
+use crate::mui::SdlHandle;
+use crate::mui::window::get_gl_version;
+#[cfg(feature = "client")]
+use crate::mui::window::WindowHandle;
 
 #[derive(From)]
 struct FerriciaError(String);
@@ -134,4 +137,15 @@ pub extern "system" fn Java_terramodulus_engine_ferricia_UI_dropWindowHandle(
 	handle: jlong,
 ) {
 	jni_drop_with_ptr::<WindowHandle>(handle);
+}
+
+#[allow(unused_mut)]
+#[allow(non_snake_case)]
+#[unsafe(no_mangle)]
+#[cfg(feature = "client")]
+pub extern "system" fn Java_terramodulus_engine_ferricia_UI_getGLVersion(
+	mut env: JNIEnv,
+	_class: JClass,
+) -> jstring {
+	env.new_string(get_gl_version()).expect("Couldn't create java string!").into_raw()
 }

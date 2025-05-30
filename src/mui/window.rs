@@ -2,9 +2,11 @@
  * SPDX-FileCopyrightText: 2025 TerraModulus Team and Contributors
  * SPDX-License-Identifier: LGPL-3.0-only
  */
+use std::ffi::CStr;
+use std::ptr::null;
 use sdl3::video::{GLContext, Window, WindowBuildError};
 use crate::{FerriciaError, FerriciaResult};
-use crate::ui::SdlHandle;
+use crate::mui::SdlHandle;
 
 impl From<WindowBuildError> for FerriciaError {
 	fn from(value: WindowBuildError) -> Self {
@@ -28,8 +30,15 @@ pub(crate) fn init_window_handle(sdl_handle: &SdlHandle) -> FerriciaResult<Windo
 		.resizable()
 		.build()?;
 	window.set_minimum_size(MIN_WIDTH, MIN_HEIGHT)?;
+	let gl_context = window.gl_create_context()?;
+	window.gl_make_current(&gl_context)?;
+	gl::load_with(|s| sdl_handle.video.gl_get_proc_address(s).map_or(null::<fn()>(), |f| f as *const _) as *const _);
 	Ok(WindowHandle {
-		gl_context: window.gl_create_context()?,
+		gl_context,
 		window,
 	})
+}
+
+pub(crate) fn get_gl_version() -> &'static str {
+	unsafe { CStr::from_ptr(gl::GetString(gl::VERSION) as *const _).to_str().unwrap() }
 }

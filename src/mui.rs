@@ -2,11 +2,16 @@
  * SPDX-FileCopyrightText: 2025 TerraModulus Team and Contributors
  * SPDX-License-Identifier: LGPL-3.0-only
  */
+
+//! MUI - Multimodal User Interface
+
 use sdl3::{AudioSubsystem, EventPump, EventSubsystem, GamepadSubsystem, HapticSubsystem, JoystickSubsystem, Sdl, VideoSubsystem};
 use crate::{FerriciaError, FerriciaResult};
 
 pub(crate) mod rendering;
 pub(crate) mod window;
+mod audio;
+mod openal;
 
 pub(crate) struct SdlHandle {
 	audio: AudioSubsystem,
