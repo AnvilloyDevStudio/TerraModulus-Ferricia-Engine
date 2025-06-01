@@ -38,18 +38,28 @@ impl WindowHandle {
 		let gl_context = window.gl_create_context()?;
 		window.gl_make_current(&gl_context)?;
 		gl::load_with(|s| sdl_handle.video.gl_get_proc_address(s).map_or(null::<fn()>(), |f| f as *const _) as *const _);
+		let gl_handle = GLHandle::new(gl_context);
+		gl_handle.gl_resize_viewport(MIN_WIDTH, MIN_HEIGHT);
 		Ok(Self {
-			gl_handle: GLHandle::new(gl_context),
+			gl_handle,
 			window,
 		})
 	}
 
-	fn gl_viewport(&self) {
-		let (width, height) = self.window.size();
-		self.gl_handle.gl_viewport(width, height);
+	fn gl_resize_viewport(&self) {
+		let (width, height) = self.window.size_in_pixels();
+		self.gl_handle.gl_resize_viewport(width, height);
+	}
+	
+	fn set_icon(&self) {
+		todo!()
+	}
+	
+	fn window_id(&self) -> u32 {
+		self.window.id()
 	}
 
-	pub(crate) fn get_gl_version(&self) -> &str {
+	pub(crate) fn gl_version(&self) -> &str {
 		self.gl_handle.full_gl_version()
 	}
 }

@@ -54,7 +54,7 @@ impl GLHandle {
 		}
 	}
 	
-	pub(super) fn gl_viewport(&self, width: u32, height: u32) {
+	pub(super) fn gl_resize_viewport(&self, width: u32, height: u32) {
 		unsafe { Viewport(0, 0, width as i32, height as i32) }
 	}
 }
