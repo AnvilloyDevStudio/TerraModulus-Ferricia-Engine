@@ -621,6 +621,12 @@ jni_ferricia! {
 }
 
 jni_ferricia! {
+	client:Mui.swapWindow(mut env: JNIEnv, class: JClass, handle: jlong) {
+		jni_from_ptr::<WindowHandle>(handle).swap_window()
+	}
+}
+
+jni_ferricia! {
 	client:Mui.initCanvasHandle(mut env: JNIEnv, class: JClass) -> jlong {
 		jni_to_ptr(CanvasHandle::new())
 	}

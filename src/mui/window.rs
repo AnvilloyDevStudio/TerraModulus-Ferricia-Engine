@@ -55,6 +55,10 @@ impl WindowHandle {
 		self.gl_handle.gl_resize_viewport(width, height);
 	}
 	
+	pub(crate) fn swap_window(&self) {
+		self.window.gl_swap_window();
+	}
+	
 	fn set_icon(&self) {
 		todo!()
 	}
