@@ -46,7 +46,7 @@ impl WindowHandle {
 		})
 	}
 
-	fn gl_resize_viewport(&self) {
+	pub fn gl_resize_viewport(&self) {
 		let (width, height) = self.window.size_in_pixels();
 		self.gl_handle.gl_resize_viewport(width, height);
 	}

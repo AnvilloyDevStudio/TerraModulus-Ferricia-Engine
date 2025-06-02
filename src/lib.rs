@@ -11,7 +11,7 @@ use crate::mui::window::WindowHandle;
 #[cfg(feature = "client")]
 use crate::mui::SdlHandle;
 use derive_more::From;
-use jni::objects::{JClass, JObject, JValueOwned};
+use jni::objects::{JClass, JObject, JString, JValueOwned};
 use jni::sys::{jarray, jbyte, jint, jlong, jobject, jobjectArray, jsize, jstring, jvalue};
 use jni::JNIEnv;
 use std::fmt::Display;
@@ -19,6 +19,7 @@ use std::panic::{catch_unwind, AssertUnwindSafe, UnwindSafe};
 use std::ptr::null;
 use paste::paste;
 use crate::mui::MuiEvent;
+use crate::mui::rendering::CanvasHandle;
 
 #[derive(From)]
 struct FerriciaError(String);
@@ -57,7 +58,7 @@ fn jni_from_ptr<'a, T>(ptr: jlong) -> &'a mut T {
 
 fn jni_res_to_ptr<T>(env: &mut JNIEnv, result: FerriciaResult<T>) -> jlong {
 	match result {
-		Ok(v) => jni_to_ptr(v) as jlong,
+		Ok(v) => jni_to_ptr(v),
 		Err(err) => {
 			err.throw_jni(env);
 			jni_null!(jlong)
@@ -604,5 +605,45 @@ jni_ferricia! {
 			});
 			a.into_raw()
 		}, || jni_null!(jobjectArray))
+	}
+}
+
+jni_ferricia! {
+	client:Mui.resizeGLViewport(mut env: JNIEnv, class: JClass, handle: jlong) {
+		jni_from_ptr::<WindowHandle>(handle).gl_resize_viewport();
+	}
+}
+
+jni_ferricia! {
+	client:Mui.initCanvasHandle(mut env: JNIEnv, class: JClass) -> jlong {
+		jni_to_ptr(CanvasHandle::new())
+	}
+}
+
+jni_ferricia! {
+	client:Mui.dropCanvasHandle(mut env: JNIEnv, class: JClass, handle: jlong) {
+		jni_drop_with_ptr::<CanvasHandle>(handle);
+	}
+}
+
+jni_ferricia! {
+	client:Mui.loadImageToCanvas(mut env: JNIEnv, class: JClass, handle: jlong, path: JString) -> jint {
+		jni_from_ptr::<CanvasHandle>(handle).load_image(env.get_string(&path)
+			.expect("Cannot get Java string").into()) as jint
+	}
+}
+
+jni_ferricia! {
+	client:Mui.shaders(mut env: JNIEnv, class: JClass, handle: jlong, vsh: JString, fsh: JString) -> jint {
+		let canvas = jni_from_ptr::<CanvasHandle>(handle);
+		let vsh = canvas.compile_vector_shader(env.get_string(&vsh).expect("Cannot get Java string").into());
+		let fsh = canvas.compile_fragment_shader(env.get_string(&fsh).expect("Cannot get Java string").into());
+		canvas.new_shader_program(vsh, fsh) as jint
+	}
+}
+
+jni_ferricia! {
+	client:Mui.renderTexture(mut env: JNIEnv, class: JClass, handle: jlong, shader: jint, texture: jint) {
+		jni_from_ptr::<CanvasHandle>(handle).render_texture(shader as _, texture as _)
 	}
 }
