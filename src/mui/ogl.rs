@@ -15,6 +15,7 @@ use regex::Regex;
 use sdl3::video::GLContext;
 use semver::Version;
 use std::ffi::CStr;
+use std::mem::MaybeUninit;
 use std::ptr::null_mut;
 use std::sync::LazyLock;
 use getset::Getters;
@@ -76,9 +77,9 @@ fn get_glsl_version() -> String {
 }
 
 fn get_extensions() -> HashSet<String> {
-	let data = null_mut();
-	unsafe { GetIntegerv(NUM_EXTENSIONS, data); }
-	let num = unsafe { *data } as u32;
+	let mut data = MaybeUninit::uninit();
+	unsafe { GetIntegerv(NUM_EXTENSIONS, data.as_mut_ptr()); }
+	let num = unsafe { data.assume_init() } as u32;
 	let mut data = HashSet::with_capacity(num as usize);
 	for i in 0..num {
 		data.insert(str_from_gl(unsafe { GetStringi(EXTENSIONS, i as GLuint) }).to_string());
