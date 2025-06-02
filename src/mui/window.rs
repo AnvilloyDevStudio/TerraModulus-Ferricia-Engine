@@ -45,8 +45,12 @@ impl WindowHandle {
 			window,
 		})
 	}
+	
+	pub(crate) fn show_window(&mut self) {
+		self.window.show();
+	}
 
-	pub fn gl_resize_viewport(&self) {
+	pub(crate) fn gl_resize_viewport(&self) {
 		let (width, height) = self.window.size_in_pixels();
 		self.gl_handle.gl_resize_viewport(width, height);
 	}
