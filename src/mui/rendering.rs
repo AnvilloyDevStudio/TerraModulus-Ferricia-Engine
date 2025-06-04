@@ -2,21 +2,42 @@
  * SPDX-FileCopyrightText: 2025 TerraModulus Team and Contributors
  * SPDX-License-Identifier: LGPL-3.0-only
  */
+use crate::mui::ogl::{buf_obj_with_data, compile_shader, gen_buf_objs, new_shader_program, vertex_attrib, with_new_vert_arr};
+use crate::mui::window::WindowHandle;
+use gl::types::GLenum;
+use gl::{AttachShader, BindTexture, CompileShader, CreateProgram, CreateShader, DeleteShader, GenTextures, GenerateMipmap, GetShaderInfoLog, GetShaderiv, LinkProgram, ShaderSource, TexImage2D, TexParameteri, ARRAY_BUFFER, CLAMP_TO_EDGE, COMPILE_STATUS, ELEMENT_ARRAY_BUFFER, FLOAT, FRAGMENT_SHADER, LINEAR, RGB, STATIC_DRAW, TEXTURE_2D, TEXTURE_MAG_FILTER, TEXTURE_MIN_FILTER, TEXTURE_WRAP_S, TEXTURE_WRAP_T, UNSIGNED_BYTE, VERTEX_SHADER};
+use image::imageops::flip_vertical;
+use image::ImageReader;
+use nalgebra_glm::{identity, ortho, scale, translate, translation, vec3, TMat4};
+use semver::Version;
 use std::ffi::CString;
 use std::fs::read_to_string;
 use std::mem::MaybeUninit;
 use std::ptr::{null, null_mut};
-use gl::{AttachShader, BindBuffer, BindTexture, BindVertexArray, BufferData, CompileShader, CreateProgram, CreateShader, DeleteShader, DrawElements, EnableVertexAttribArray, GenBuffers, GenTextures, GenVertexArrays, GenerateMipmap, GetShaderInfoLog, GetShaderiv, LinkProgram, ShaderSource, TexImage2D, TexParameteri, UseProgram, VertexAttribPointer, ARRAY_BUFFER, CLAMP_TO_EDGE, COMPILE_STATUS, ELEMENT_ARRAY_BUFFER, FALSE, FLOAT, FRAGMENT_SHADER, LINEAR, RGB, STATIC_DRAW, TEXTURE_2D, TEXTURE_MAG_FILTER, TEXTURE_MIN_FILTER, TEXTURE_WRAP_S, TEXTURE_WRAP_T, TRIANGLES, UNSIGNED_BYTE, UNSIGNED_INT, VERTEX_SHADER};
-use gl::types::GLenum;
-use image::ImageReader;
+use std::sync::LazyLock;
+use crate::FerriciaResult;
+
+static IDENT_MAT_4: LazyLock<TMat4<f32>> = LazyLock::new(identity);
 
 pub(crate) struct CanvasHandle {
-
+	/// Size of Canvas in pixels
+	size: (u32, u32),
+	ortho_proj_mat: TMat4<f32>,
+	/// DO NOT MUTATE
+	gl_version: Version,
+	/// DO NOT MUTATE
+	glsl_version: Version,
 }
 
 impl CanvasHandle {
-	pub(crate) fn new() -> Self {
-		Self { }
+	pub(crate) fn new(window_handle: &WindowHandle) -> Self {
+		let size = window_handle.window_size_in_pixels();
+		Self {
+			ortho_proj_mat: ortho_proj_mat(size),
+			size,
+			gl_version: window_handle.gl_version().clone(),
+			glsl_version: window_handle.glsl_version().clone(),
+		}
 	}
 
 	pub(crate) fn load_image(&self, path: String) -> u32 {
@@ -25,6 +46,8 @@ impl CanvasHandle {
 			.decode()
 			.expect("Cannot decode image")
 			.into_rgb8();
+		// Image coordinates have a difference direction as OpenGL texture coordinates.
+		flip_vertical(&img);
 		let mut id = MaybeUninit::uninit();
 		unsafe { GenTextures(1, id.as_mut_ptr()); }
 		let id = unsafe { id.assume_init() };
@@ -50,80 +73,102 @@ impl CanvasHandle {
 		id
 	}
 
-	pub(crate) fn compile_vector_shader(&self, path: String) -> u32 {
-		self.compile_shader(VERTEX_SHADER, path)
+	pub(crate) fn compile_vector_shader(&self, path: String) -> FerriciaResult<u32> {
+		self.compile_shader_from(VERTEX_SHADER, path)
 	}
 
-	pub(crate) fn compile_fragment_shader(&self, path: String) -> u32 {
-		self.compile_shader(FRAGMENT_SHADER, path)
+	pub(crate) fn compile_fragment_shader(&self, path: String) -> FerriciaResult<u32> {
+		self.compile_shader_from(FRAGMENT_SHADER, path)
 	}
 
-	fn compile_shader(&self, kind: GLenum, path: String) -> u32 {
-		let shader = unsafe { CreateShader(kind) };
-		let src = CString::new(read_to_string(path).expect("Cannot read the file"))
-			.expect("Cannot create CString");
-		let src_ptr = src.as_ptr();
-		unsafe { ShaderSource(shader, 1, &src_ptr, null()); }
-		unsafe { CompileShader(shader); }
-		let mut status = MaybeUninit::uninit();
-		unsafe { GetShaderiv(shader, COMPILE_STATUS, status.as_mut_ptr()); }
-		let status = unsafe { status.assume_init() };
-		if status == 0 {
-			let out = CString::default().into_raw();
-			unsafe { GetShaderInfoLog(shader, COMPILE_STATUS as _, null_mut(), out); }
-			let out = unsafe { CString::from_raw(out) };
-			panic!("{:?}", out) // TODO error
-		}
-		shader
+	/// In real implementation, a whole preprocessed source is passed instead.
+	fn compile_shader_from(&self, kind: GLenum, path: String) -> FerriciaResult<u32> {
+		Ok(compile_shader(read_to_string(path).expect("Cannot read the file"), kind)?)
 	}
 
-	pub(crate) fn new_shader_program(&self, vsh: u32, fsh: u32) -> u32 {
-		let program = unsafe { CreateProgram() };
-		unsafe { AttachShader(program, vsh); }
-		unsafe { AttachShader(program, fsh); }
-		unsafe { LinkProgram(program); }
-		unsafe { DeleteShader(vsh); }
-		unsafe { DeleteShader(fsh); }
-		program
+	pub(crate) fn new_shader_program_with(&self, vsh: u32, fsh: u32) -> u32 {
+		new_shader_program([vsh, fsh])
 	}
 
 	pub(crate) fn render_texture(&self, program: u32, texture: u32) {
-		let vertices: [f32; 20] = [
-			// positions       // tex coords
-			-1.0,  1.0, 0.0,  0.0, 1.0, // top-left
-			-1.0, -1.0, 0.0,  0.0, 0.0, // bottom-left
-			1.0, -1.0, 0.0,  1.0, 0.0, // bottom-right
-			1.0,  1.0, 0.0,  1.0, 1.0  // top-right
-		];
-		let indices = [
-			0, 1, 2, // first triangle
-			0, 2, 3  // second triangle
-		];
-		let mut vao = MaybeUninit::uninit();
-		let mut vbo = MaybeUninit::uninit();
-		let mut ebo = MaybeUninit::uninit();
-		unsafe { GenVertexArrays(1, vao.as_mut_ptr()); }
-		unsafe { GenBuffers(1, vbo.as_mut_ptr()); }
-		unsafe { GenBuffers(1, ebo.as_mut_ptr()) }
-		let vao = unsafe { vao.assume_init() };
-		let vbo = unsafe { vbo.assume_init() };
-		let ebo = unsafe { ebo.assume_init() };
-		unsafe { BindVertexArray(vao); }
-		unsafe { BindBuffer(ARRAY_BUFFER, vbo); }
-		unsafe { BufferData(ARRAY_BUFFER, size_of_val(&vertices) as _, vertices.as_ptr() as _, STATIC_DRAW); }
-		unsafe { BindBuffer(ELEMENT_ARRAY_BUFFER, ebo); }
-		unsafe { BufferData(ELEMENT_ARRAY_BUFFER, size_of_val(&indices) as _, indices.as_ptr() as _, STATIC_DRAW); }
+		// unsafe { UseProgram(program); }
+		// unsafe { BindTexture(TEXTURE_2D, texture); }
+		// unsafe { BindVertexArray(vao); }
+		// unsafe { DrawElements(TRIANGLES, 6, UNSIGNED_INT, 0 as _) }
+	}
 
-		// Position attribute
-		unsafe { VertexAttribPointer(0, 3, FLOAT, FALSE, (5 * size_of::<f32>()) as _, 0 as _); }
-		unsafe { EnableVertexAttribArray(0); }
-		// Texture coord attribute
-		unsafe { VertexAttribPointer(1, 2, FLOAT, FALSE, (5 * size_of::<f32>()) as _, (3 * size_of::<f32>()) as _); }
-		unsafe { EnableVertexAttribArray(1); }
+	pub(crate) fn refresh_canvas_size(&mut self, width: u32, height: u32) {
+		self.size = (width, height);
+		self.ortho_proj_mat = ortho_proj_mat(self.size);
+	}
+}
 
-		unsafe { UseProgram(program); }
-		unsafe { BindTexture(TEXTURE_2D, texture); }
-		unsafe { BindVertexArray(vao); }
-		unsafe { DrawElements(TRIANGLES, 6, UNSIGNED_INT, null()) }
+/// Usage: `unsafe { UniformMatrix4fv(0, 1, FALSE, ortho.as_ptr()) }`
+/// 
+/// This may be an identity matrix if no model/view matrix is supplied.
+fn ortho_proj_mat(size: (u32, u32)) -> TMat4<f32> {
+	let (width, height) = size;
+	ortho::<f32>(0., width as _, 0., height as _, -1., 1.)
+}
+
+struct NormalTexture {
+	vao: u32,
+	vbo: u32,
+	ebo: u32,
+}
+
+impl NormalTexture {
+	const VERTICES: [f32; 16] = [
+		// positions // tex coords
+		-1.0,  1.0,  0.0, 1.0, // top-left
+		-1.0, -1.0,  0.0, 0.0, // bottom-left
+		1.0,  -1.0,  1.0, 0.0, // bottom-right
+		1.0,   1.0,  1.0, 1.0, // top-right
+	];
+	
+	const INDICES: [u32; 6] = [
+		0, 1, 2, // first triangle
+		0, 2, 3  // second triangle
+	];
+	
+	fn new() -> NormalTexture {
+		let vao = with_new_vert_arr();
+		let [vbo, ebo] = gen_buf_objs();
+		buf_obj_with_data(ARRAY_BUFFER, vbo, &Self::VERTICES, STATIC_DRAW);
+		buf_obj_with_data(ELEMENT_ARRAY_BUFFER, ebo, &Self::INDICES, STATIC_DRAW);
+		vertex_attrib::<f32>(0, 2, FLOAT, 4, 0); // Position
+		vertex_attrib::<f32>(1, 2, FLOAT, 4, 2); // Texture coord
+		Self { vao, vbo, ebo } // Note: Binding to the VAO remains
+	}
+}
+
+/// Smart-Scaled Texture depending on the current window size.
+///
+/// Scaling is calculated by: `min(windowWidth / referenceWidth, windowHeight / referenceHeight)`,
+/// where the reference size is decided by the dimensions of the window expected.
+///
+/// The matrix is done by: `T(c) \* S \* T(-c)`,
+/// where `S` is the scaling matrix and `T` is the translating matrix with
+/// `c` being the center of rendered texture on the canvas.
+struct SmartScaledTexture {
+	reference_size: (u32, u32),
+}
+
+impl SmartScaledTexture {
+	fn new(reference_size: (u32, u32)) -> Self {
+		Self { reference_size, }
+	}
+
+	fn model_mat(&self, render_center: (u32, u32), window_size: (u32, u32)) -> TMat4<f32> {
+		let render_center_vec = vec3::<f32>(render_center.0 as _, render_center.1 as _, 0.);
+		let t_1 = translation(&render_center_vec);
+		let scaling = f32::min(
+			window_size.0 as f32 / self.reference_size.0 as f32,
+			window_size.1 as f32 / self.reference_size.1 as f32,
+		);
+		let scaling_vec = vec3(scaling, scaling, 0.0);
+		let s = scale(&t_1, &scaling_vec);
+		let render_center_vec_neg = -render_center_vec;
+		translate(&s, &render_center_vec_neg)
 	}
 }

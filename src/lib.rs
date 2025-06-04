@@ -84,6 +84,10 @@ fn run_catch<F: FnOnce() -> R, R>(env: &mut JNIEnv, f: F, fall: fn() -> R) -> R 
 	}
 }
 
+fn jni_get_string(env: &mut JNIEnv, src: JString) -> String {
+	env.get_string(&src).expect("Cannot get Java string").into()
+}
+
 // #[allow(non_snake_case)]
 // #[unsafe(no_mangle)]
 // pub extern "system" fn Java_terramodulus_engine_ferricia_Demo_hello(
@@ -195,7 +199,7 @@ jni_ferricia! {
 
 jni_ferricia! {
 	client:Mui.getGLVersion(mut env: JNIEnv, class: JClass, handle: jlong) -> jstring {
-		env.new_string(jni_from_ptr::<WindowHandle>(handle).gl_version())
+		env.new_string(jni_from_ptr::<WindowHandle>(handle).full_gl_version())
 			.expect("Cannot create Java string")
 			.into_raw()
 	}
@@ -609,8 +613,8 @@ jni_ferricia! {
 }
 
 jni_ferricia! {
-	client:Mui.resizeGLViewport(mut env: JNIEnv, class: JClass, handle: jlong) {
-		jni_from_ptr::<WindowHandle>(handle).gl_resize_viewport();
+	client:Mui.resizeGLViewport(mut env: JNIEnv, class: JClass, handle: jlong, canvas_handle: jlong) {
+		jni_from_ptr::<WindowHandle>(handle).gl_resize_viewport(jni_from_ptr::<CanvasHandle>(canvas_handle));
 	}
 }
 
@@ -627,8 +631,8 @@ jni_ferricia! {
 }
 
 jni_ferricia! {
-	client:Mui.initCanvasHandle(mut env: JNIEnv, class: JClass) -> jlong {
-		jni_to_ptr(CanvasHandle::new())
+	client:Mui.initCanvasHandle(mut env: JNIEnv, class: JClass, handle: jlong) -> jlong {
+		jni_to_ptr(CanvasHandle::new(jni_from_ptr::<WindowHandle>(handle)))
 	}
 }
 
@@ -648,9 +652,9 @@ jni_ferricia! {
 jni_ferricia! {
 	client:Mui.shaders(mut env: JNIEnv, class: JClass, handle: jlong, vsh: JString, fsh: JString) -> jint {
 		let canvas = jni_from_ptr::<CanvasHandle>(handle);
-		let vsh = canvas.compile_vector_shader(env.get_string(&vsh).expect("Cannot get Java string").into());
-		let fsh = canvas.compile_fragment_shader(env.get_string(&fsh).expect("Cannot get Java string").into());
-		canvas.new_shader_program(vsh, fsh) as jint
+		let vsh = canvas.compile_vector_shader(jni_get_string(&mut env, vsh));
+		let fsh = canvas.compile_fragment_shader(jni_get_string(&mut env, fsh));
+		canvas.new_shader_program_with(vsh, fsh) as jint
 	}
 }
 
