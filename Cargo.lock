@@ -2232,6 +2232,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ordermap"
+version = "0.5.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d31b8b7a99f71bdff4235faf9ce9eada0ad3562c8fbeb7d607d9f41a6ec569d"
+dependencies = [
+ "indexmap",
+]
+
+[[package]]
 name = "parking_lot"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3155,6 +3164,7 @@ dependencies = [
  "openal-soft-sys",
  "opencl3",
  "opusic-sys",
+ "ordermap",
  "paste",
  "rand 0.9.1",
  "regex",

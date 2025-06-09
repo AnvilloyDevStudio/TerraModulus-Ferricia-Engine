@@ -8,6 +8,8 @@ use crate::{FerriciaError, FerriciaResult};
 use gl::COLOR_BUFFER_BIT;
 use sdl3::video::{SwapInterval, Window, WindowBuildError};
 use std::ptr::null;
+use std::rc::Rc;
+use std::sync::Arc;
 use getset::Getters;
 use semver::Version;
 use crate::mui::rendering::CanvasHandle;
@@ -22,8 +24,9 @@ impl From<WindowBuildError> for FerriciaError {
 #[derive(Getters)]
 pub(crate) struct WindowHandle {
 	window: Window,
+	/// Must be internally immutable upon initialization.
 	#[get = "pub(super)"]
-	gl_handle: GLHandle,
+	gl_handle: Arc<GLHandle>,
 }
 
 const MIN_WIDTH: u32 = 800;
@@ -44,7 +47,7 @@ impl WindowHandle {
 		let gl_handle = GLHandle::new(gl_context)?;
 		gl_handle.gl_resize_viewport(MIN_WIDTH, MIN_HEIGHT);
 		Ok(Self {
-			gl_handle,
+			gl_handle: Arc::new(gl_handle),
 			window,
 		})
 	}
@@ -77,13 +80,5 @@ impl WindowHandle {
 
 	pub(crate) fn full_gl_version(&self) -> &str {
 		self.gl_handle.full_gl_version()
-	}
-
-	pub(super) fn gl_version(&self) -> &Version {
-		self.gl_handle.gl_version()
-	}
-
-	pub(super) fn glsl_version(&self) -> &Version {
-		self.gl_handle.glsl_version()
 	}
 }
