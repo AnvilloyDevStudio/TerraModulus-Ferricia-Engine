@@ -35,7 +35,8 @@ use std::env::set_var;
 use std::fmt::Display;
 use std::panic::{catch_unwind, take_hook, AssertUnwindSafe};
 use std::ptr::{from_raw_parts, null, Pointee};
-use crate::mui::rendering::{AlphaFilter, PrimColorFilter};
+#[cfg(feature = "client")]
+use crate::mui::rendering::{clear_canvas, set_clear_color, AlphaFilter, PrimColorFilter};
 
 #[derive(From)]
 struct FerriciaError(String);
@@ -755,6 +756,18 @@ jni_ferricia! {
 	client:Mui.loadImageToCanvas(mut env: JNIEnv, class: JClass, handle: jlong, path: JString) -> jint {
 		jni_ref_ptr::<CanvasHandle>(handle).load_image(env.get_string(&path)
 			.expect("Cannot get Java string").into()) as jint
+	}
+}
+
+jni_ferricia! {
+	client:Mui.clearCanvas(mut env: JNIEnv, class: JClass) {
+		clear_canvas()
+	}
+}
+
+jni_ferricia! {
+	client:Mui.setCanvasClearColor(mut env: JNIEnv, class: JClass, r: jfloat, g: jfloat, b: jfloat, a: jfloat) {
+		set_clear_color((r, g, b, a));
 	}
 }
 

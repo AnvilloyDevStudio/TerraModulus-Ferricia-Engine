@@ -111,6 +111,8 @@ impl CanvasHandle {
 	}
 }
 
+pub(crate) use crate::mui::ogl::{clear_canvas, set_clear_color};
+
 struct DrawingContext<'a> {
 	window_size: &'a (u32, u32),
 }
