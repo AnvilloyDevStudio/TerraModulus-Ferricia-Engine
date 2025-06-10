@@ -34,7 +34,7 @@
 
 use getset::Getters;
 use gl::types::{GLenum, GLubyte, GLuint};
-use gl::{ActiveTexture, AttachShader, BindBuffer, BindTexture, BindVertexArray, BufferData, CompileShader, CreateProgram, CreateShader, DeleteShader, DisableVertexAttribArray, DrawArrays, DrawElements, EnableVertexAttribArray, GenBuffers, GenVertexArrays, GetIntegerv, GetShaderInfoLog, GetShaderiv, GetString, GetStringi, GetUniformLocation, LinkProgram, ShaderSource, UniformMatrix4fv, UseProgram, VertexAttrib1d, VertexAttrib1f, VertexAttrib1s, VertexAttrib2d, VertexAttrib2f, VertexAttrib2s, VertexAttrib3d, VertexAttrib3f, VertexAttrib3s, VertexAttrib4Nub, VertexAttrib4d, VertexAttrib4f, VertexAttrib4s, VertexAttribI1i, VertexAttribI1ui, VertexAttribI2i, VertexAttribI2ui, VertexAttribI3i, VertexAttribI3ui, VertexAttribI4i, VertexAttribI4ui, VertexAttribPointer, Viewport, ARRAY_BUFFER, BYTE, COMPILE_STATUS, COMPUTE_SHADER, DOUBLE, EXTENSIONS, FALSE, FLOAT, FRAGMENT_SHADER, GEOMETRY_SHADER, INT, NUM_EXTENSIONS, RENDERER, SHADING_LANGUAGE_VERSION, SHORT, TESS_CONTROL_SHADER, TESS_EVALUATION_SHADER, TEXTURE0, TEXTURE_2D, UNSIGNED_BYTE, UNSIGNED_INT, UNSIGNED_SHORT, VENDOR, VERSION, VERTEX_SHADER};
+use gl::{ActiveTexture, AttachShader, BindBuffer, BindTexture, BindVertexArray, BlendFunc, BufferData, CompileShader, CreateProgram, CreateShader, DeleteShader, DisableVertexAttribArray, DrawArrays, DrawElements, Enable, EnableVertexAttribArray, GenBuffers, GenVertexArrays, GetIntegerv, GetShaderInfoLog, GetShaderiv, GetString, GetStringi, GetUniformLocation, LinkProgram, ShaderSource, UniformMatrix4fv, UseProgram, VertexAttrib1d, VertexAttrib1f, VertexAttrib1s, VertexAttrib2d, VertexAttrib2f, VertexAttrib2s, VertexAttrib3d, VertexAttrib3f, VertexAttrib3s, VertexAttrib4Nub, VertexAttrib4d, VertexAttrib4f, VertexAttrib4s, VertexAttribI1i, VertexAttribI1ui, VertexAttribI2i, VertexAttribI2ui, VertexAttribI3i, VertexAttribI3ui, VertexAttribI4i, VertexAttribI4ui, VertexAttribPointer, Viewport, ARRAY_BUFFER, BLEND, BYTE, COMPILE_STATUS, COMPUTE_SHADER, DOUBLE, EXTENSIONS, FALSE, FLOAT, FRAGMENT_SHADER, GEOMETRY_SHADER, INT, NUM_EXTENSIONS, ONE_MINUS_SRC_ALPHA, RENDERER, SHADING_LANGUAGE_VERSION, SHORT, SRC_ALPHA, TESS_CONTROL_SHADER, TESS_EVALUATION_SHADER, TEXTURE0, TEXTURE_2D, UNSIGNED_BYTE, UNSIGNED_INT, UNSIGNED_SHORT, VENDOR, VERSION, VERTEX_SHADER};
 use num_traits::{Bounded, Num};
 use regex::Regex;
 use sdl3::video::GLContext;
@@ -98,6 +98,7 @@ impl GLHandle {
 			features: HashSet::new(),
 		};
 		instance.check_requirements()?;
+		setup();
 		Ok(instance)
 	}
 
@@ -131,6 +132,11 @@ impl GLHandle {
 	pub(super) fn ubo_supported(&self) -> bool {
 		self.features.contains(&GLFeature::Ubo)
 	}
+}
+
+fn setup() {
+	unsafe { Enable(BLEND); }
+	unsafe { BlendFunc(SRC_ALPHA, ONE_MINUS_SRC_ALPHA); }
 }
 
 fn get_string(name: GLenum) -> String {
