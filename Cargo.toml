@@ -4,6 +4,12 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.85.0"
 
+[profile.release]
+panic = "unwind"
+
+[profile.dev]
+panic = "unwind"
+
 [lib]
 name = "ferricia"
 crate-type = ["cdylib"]

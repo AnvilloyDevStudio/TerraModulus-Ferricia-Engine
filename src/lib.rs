@@ -242,7 +242,7 @@ jni_ferricia! {
 	Core.init(mut env: JNIEnv, class: JClass) {
 		// Source: https://stackoverflow.com/a/73711057
 		std::panic::set_hook(Box::new(|_| {
-			BACKTRACE.set(Some(Backtrace::capture()));
+			BACKTRACE.set(Some(Backtrace::force_capture()));
 		}));
 	}
 }
