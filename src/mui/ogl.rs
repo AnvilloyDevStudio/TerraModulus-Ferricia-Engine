@@ -235,7 +235,7 @@ impl NumType {
 }
 
 pub(super) fn buf_obj_with_data<T: Number>(target: GLenum, buffer: u32, data: &[T], usage: GLenum) {
-	unsafe { BindBuffer(ARRAY_BUFFER, buffer); }
+	unsafe { BindBuffer(target, buffer); }
 	unsafe { BufferData(target, size_of_val(data) as _, data.as_ptr() as _, usage); }
 }
 
