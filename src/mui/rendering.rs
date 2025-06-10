@@ -6,7 +6,7 @@ use crate::mui::ogl::{buf_obj_with_data, compile_shader, draw_arrays, draw_eleme
 use crate::mui::window::WindowHandle;
 use crate::FerriciaResult;
 use gl::{BindTexture, GenTextures, GenerateMipmap, TexImage2D, TexParameteri, ARRAY_BUFFER, CLAMP_TO_EDGE, ELEMENT_ARRAY_BUFFER, LINES, NEAREST, NEAREST_MIPMAP_LINEAR, RGBA, STATIC_DRAW, TEXTURE_2D, TEXTURE_MAG_FILTER, TEXTURE_MIN_FILTER, TEXTURE_WRAP_S, TEXTURE_WRAP_T, TRIANGLES, UNSIGNED_BYTE};
-use image::imageops::flip_vertical;
+use image::imageops::{flip_vertical, flip_vertical_in_place};
 use image::ImageReader;
 use nalgebra_glm::{identity, ortho, scaling, translate, vec3, TMat4};
 use ordermap::OrderSet;
@@ -54,13 +54,13 @@ impl CanvasHandle {
 	// }
 
 	pub(crate) fn load_image(&self, path: String) -> u32 {
-		let img = ImageReader::open(path)
+		let mut img = ImageReader::open(path)
 			.expect("Cannot open image")
 			.decode()
 			.expect("Cannot decode image")
 			.into_rgba8();
 		// Image coordinates have a difference direction as OpenGL texture coordinates.
-		flip_vertical(&img);
+		flip_vertical_in_place(&mut img);
 		let mut id = MaybeUninit::uninit();
 		unsafe { GenTextures(1, id.as_mut_ptr()); }
 		let id = unsafe { id.assume_init() };
@@ -100,7 +100,7 @@ impl CanvasHandle {
 		if let Some(v) = texture {
 			use_texture_2d(v);
 		}
-		
+
 		set.prim.apply_vao();
 		let context = DrawingContext { window_size: &self.size };
 		program.uniform(&self.ortho_proj_mat, set, context);
@@ -263,7 +263,7 @@ impl GuiProgram for TexProgram {
 // }
 
 /// A set of data that is completely drawable for an instance with all the information available.
-/// 
+///
 /// The functions of model and filter additions and removals cannot be made generalized by pointer
 /// arithmetic operations due to the current limitation of pointers.
 /// See [Rust RFC 2580](https://rust-lang.github.io/rfcs/2580-ptr-meta.html) for details.
@@ -322,7 +322,7 @@ impl<'a> DrawableSet<'a> {
 	}
 
 	fn eval_filter_mat(&self, drawing_context: &DrawingContext) -> Cow<TMat4<f32>> {
-		if self.models.is_empty() {
+		if self.filters.is_empty() {
 			Cow::Borrowed(&*IDENT_MAT_4)
 		} else {
 			let mut it = self.filters.iter();
@@ -405,7 +405,7 @@ impl SpriteMesh {
 	pub(crate) fn new(points: [u32; 4]) -> Self {
 		let vao = with_new_vert_arr();
 		let [vbo, ebo] = gen_buf_objs();
-		let vertices = [
+		let vertices: [f32; 16] = [
 			// positions                    // tex coords
 			points[0] as _, points[3] as _, 0.0, 1.0, // top-left
 			points[0] as _, points[1] as _, 0.0, 0.0, // bottom-left
