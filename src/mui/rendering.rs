@@ -8,7 +8,7 @@ use crate::FerriciaResult;
 use gl::{BindTexture, GenTextures, GenerateMipmap, TexImage2D, TexParameteri, ARRAY_BUFFER, CLAMP_TO_EDGE, ELEMENT_ARRAY_BUFFER, LINES, NEAREST, NEAREST_MIPMAP_LINEAR, RGBA, STATIC_DRAW, TEXTURE_2D, TEXTURE_MAG_FILTER, TEXTURE_MIN_FILTER, TEXTURE_WRAP_S, TEXTURE_WRAP_T, TRIANGLES, UNSIGNED_BYTE};
 use image::imageops::{flip_vertical, flip_vertical_in_place};
 use image::ImageReader;
-use nalgebra_glm::{identity, ortho, scaling, translate, vec3, TMat4};
+use nalgebra_glm::{identity, ortho, scaling, translate, translation, vec3, TMat4};
 use ordermap::OrderSet;
 use sdl3::pixels::Color;
 use std::borrow::Cow;
@@ -492,7 +492,7 @@ impl PrimModelTransform for SmartScaling {
 						0.0,
 						0.0,
 					);
-					translate(&scaling_mat, &vec)
+					translation(&vec) * scaling_mat
 				},
 				ScalingCenteredTranslateParam::Y => {
 					let vec = vec3(
@@ -500,7 +500,7 @@ impl PrimModelTransform for SmartScaling {
 						(drawing_context.window_size.1 as f32 - param.1.1 as f32 * factor) / 2.0,
 						0.0,
 					);
-					translate(&scaling_mat, &vec)
+					translation(&vec) * scaling_mat
 				},
 				ScalingCenteredTranslateParam::Both => {
 					let vec = vec3(
@@ -508,7 +508,7 @@ impl PrimModelTransform for SmartScaling {
 						(drawing_context.window_size.1 as f32 - param.1.1 as f32 * factor) / 2.0,
 						0.0,
 					);
-					translate(&scaling_mat, &vec)
+					translation(&vec) * scaling_mat
 				},
 			}
 		}
