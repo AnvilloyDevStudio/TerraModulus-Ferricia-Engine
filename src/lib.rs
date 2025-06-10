@@ -113,10 +113,10 @@ fn jni_from_wide_ptr<'a, T: ?Sized>(ptr: jlong) -> &'a T {
 
 macro_rules! jni_to_destructed_ptr {
 	($val:expr, $tr:ty, $env:ident) => {
-		let val = $val;
-		let r = jni_to_wide_ptr(&val as &$tr);
+		let ptr = Box::into_raw(Box::new($val));
 		let arr = $env.new_long_array(2).expect("Cannot create JLongArray");
-		$env.set_long_array_region(&arr, 0, &[jni_to_ptr(val), r]).expect("Cannot set Java array elements");
+		$env.set_long_array_region(&arr, 0, &[ptr as jlong, jni_to_wide_ptr(unsafe { &*ptr } as &$tr)])
+			.expect("Cannot set Java array elements");
 		return arr.into_raw()
 	};
 }
