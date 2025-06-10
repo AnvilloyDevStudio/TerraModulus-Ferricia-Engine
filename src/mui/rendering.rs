@@ -550,7 +550,7 @@ impl AlphaFilter {
 impl PrimColorFilter for AlphaFilter {
 	fn filter_matrix(&self, _drawing_context: &DrawingContext) -> TMat4<f32> {
 		let mut mat = *IDENT_MAT_4;
-		mat.m33 = self.alpha;
+		mat.m44 = self.alpha;
 		mat
 	}
 }
