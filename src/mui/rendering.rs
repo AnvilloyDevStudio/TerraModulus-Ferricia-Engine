@@ -2,6 +2,9 @@
  * SPDX-FileCopyrightText: 2025 TerraModulus Team and Contributors
  * SPDX-License-Identifier: LGPL-3.0-only
  */
+
+#![allow(private_interfaces)]
+
 use crate::mui::ogl::{buf_obj_with_data, compile_shader, draw_arrays, draw_elements, gen_buf_obj, gen_buf_objs, get_uniform_location, new_shader_program, use_program, use_texture_2d, use_uniform_mat_4, use_vao, vert_attr, vert_attr_arr, with_new_vert_arr, GLHandle, NumType, ShaderType, VertexAttrVariant};
 use crate::mui::window::WindowHandle;
 use crate::FerriciaResult;
@@ -124,7 +127,6 @@ fn compile_shader_from(kind: ShaderType, path: String) -> FerriciaResult<u32> {
 	Ok(compile_shader(read_to_string(path).expect("Cannot read the file"), kind)?)
 }
 
-#[allow(private_interfaces)]
 pub(crate) trait GuiProgram {
 	fn id(&self) -> u32;
 
@@ -153,7 +155,6 @@ impl GeoProgram {
 	}
 }
 
-#[allow(private_interfaces)]
 impl GuiProgram for GeoProgram {
 	fn id(&self) -> u32 {
 		self.id
@@ -193,7 +194,6 @@ impl TexProgram {
 	}
 }
 
-#[allow(private_interfaces)]
 impl GuiProgram for TexProgram {
 	fn id(&self) -> u32 {
 		self.id
@@ -264,8 +264,8 @@ impl GuiProgram for TexProgram {
 
 /// A set of data that is completely drawable for an instance with all the information available.
 ///
-/// The functions of model and filter additions and removals cannot be made generalized by pointer
-/// arithmetic operations due to the current limitation of pointers.
+/// The functions of model and filter additions and removals are made generalized using
+/// experimental features which may not have guarantees.
 /// See [Rust RFC 2580](https://rust-lang.github.io/rfcs/2580-ptr-meta.html) for details.
 // #[derive(Getters)]
 pub(crate) struct DrawableSet<'a> {
@@ -532,3 +532,25 @@ impl PartialEq for &dyn PrimColorFilter {
 }
 
 impl Eq for &dyn PrimColorFilter {}
+
+pub(crate) struct AlphaFilter {
+	alpha: f32,
+}
+
+impl AlphaFilter {
+	pub(crate) fn new(alpha: f32) -> Self {
+		Self { alpha }
+	}
+	
+	pub(crate) fn set_alpha(&mut self, alpha: f32) {
+		self.alpha = alpha;
+	}
+}
+
+impl PrimColorFilter for AlphaFilter {
+	fn filter_matrix(&self, _drawing_context: &DrawingContext) -> TMat4<f32> {
+		let mut mat = *IDENT_MAT_4;
+		mat.m33 = self.alpha;
+		mat
+	}
+}
