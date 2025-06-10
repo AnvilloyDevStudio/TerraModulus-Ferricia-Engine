@@ -9,6 +9,7 @@ panic = "unwind"
 
 [profile.dev]
 panic = "unwind"
+debug = true
 
 [lib]
 name = "ferricia"

@@ -11,6 +11,7 @@ mod util;
 
 use std::backtrace::Backtrace;
 use std::cell::Cell;
+use std::env::set_var;
 #[cfg(feature = "client")]
 use crate::mui::rendering::CanvasHandle;
 #[cfg(feature = "client")]
@@ -30,7 +31,7 @@ use jni::JNIEnv;
 use paste::paste;
 use sdl3::pixels::Color;
 use std::fmt::Display;
-use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::panic::{catch_unwind, take_hook, AssertUnwindSafe};
 use std::ptr::null;
 use crate::mui::rendering::{PrimModelTransform, ScalingCenteredTranslateParam, SmartScaling};
 
@@ -109,7 +110,11 @@ macro_rules! run_catch {
 			Ok(v) => v,
 			Err(err) => {
 				let b = BACKTRACE.take().unwrap();
-				FerriciaError(format!("{err:?}\n{b:?}")).throw_jni($env);
+				if let Some(val) = err.downcast_ref::<String>() {
+					FerriciaError(format!("{val:?}\n{b:?}")).throw_jni($env);
+				} else {
+					FerriciaError(format!("Unknown\n{b:?}")).throw_jni($env);
+				}
 				jni_null!($t)
 			}
 		}
@@ -119,7 +124,11 @@ macro_rules! run_catch {
 			Ok(v) => v,
 			Err(err) => {
 				let b = BACKTRACE.take().unwrap();
-				FerriciaError(format!("{err:?}\n{b:?}")).throw_jni($env);
+				if let Some(val) = err.downcast_ref::<String>() {
+					FerriciaError(format!("{val:?}\n{b:?}")).throw_jni($env);
+				} else {
+					FerriciaError(format!("Unknown\n{b:?}")).throw_jni($env);
+				}
 			}
 		}
 	};
@@ -241,9 +250,13 @@ macro_rules! jni_ferricia {
 jni_ferricia! {
 	Core.init(mut env: JNIEnv, class: JClass) {
 		// Source: https://stackoverflow.com/a/73711057
-		std::panic::set_hook(Box::new(|_| {
+		let orig_hook = take_hook();
+		std::panic::set_hook(Box::new(move |panic_info| {
 			BACKTRACE.set(Some(Backtrace::force_capture()));
+			orig_hook(panic_info);
 		}));
+		#[cfg(debug_assertions)]
+		unsafe { set_var("RUST_BACKTRACE", "full"); }
 	}
 }
 
@@ -745,7 +758,6 @@ jni_ferricia! {
 			env.get_array_elements(&data, ReleaseMode::NoCopyBack)
 				.expect("Cannot get Java array elements")
 		};
-		let arr = arr.get(0..8).expect("Cannot get Java array elements");
 		jni_to_ptr(DrawableSet::new(SimpleLineGeom::new(
 			[(arr[0] as f32, arr[1] as f32), (arr[2] as f32, arr[3] as f32)],
 			Color::RGBA(arr[4] as u8, arr[5] as u8, arr[6] as u8, arr[7] as u8),
@@ -760,7 +772,6 @@ jni_ferricia! {
 			env.get_array_elements(&data, ReleaseMode::NoCopyBack)
 				.expect("Cannot get Java array elements")
 		};
-		let arr = arr.get(0..4).expect("Cannot get Java array elements");
 		jni_to_ptr(DrawableSet::new(SpriteMesh::new([arr[0] as _, arr[1] as _, arr[2] as _, arr[3] as _])))
 	}
 }
@@ -772,7 +783,6 @@ jni_ferricia! {
 			env.get_array_elements(&data, ReleaseMode::NoCopyBack)
 				.expect("Cannot get Java array elements")
 		};
-		let arr = arr.get(0..5).expect("Cannot get Java array elements");
 		jni_to_ptr(SmartScaling::new((arr[0] as _, arr[1] as _), match arr[2] {
 			0 => None,
 			1 => Some((ScalingCenteredTranslateParam::X, (arr[3] as _, arr[4] as _))),
