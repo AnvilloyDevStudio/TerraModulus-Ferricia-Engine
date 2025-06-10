@@ -32,7 +32,7 @@ use sdl3::pixels::Color;
 use std::fmt::Display;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::ptr::null;
-use crate::mui::rendering::{PrimModelTransform, SmartScaling};
+use crate::mui::rendering::{PrimModelTransform, ScalingCenteredTranslateParam, SmartScaling};
 
 #[derive(From)]
 struct FerriciaError(String);
@@ -772,8 +772,14 @@ jni_ferricia! {
 			env.get_array_elements(&data, ReleaseMode::NoCopyBack)
 				.expect("Cannot get Java array elements")
 		};
-		let arr = arr.get(0..2).expect("Cannot get Java array elements");
-		jni_to_ptr(SmartScaling::new((arr[0] as _, arr[1] as _)))
+		let arr = arr.get(0..5).expect("Cannot get Java array elements");
+		jni_to_ptr(SmartScaling::new((arr[0] as _, arr[1] as _), match arr[2] {
+			0 => None,
+			1 => Some((ScalingCenteredTranslateParam::X, (arr[3] as _, arr[4] as _))),
+			2 => Some((ScalingCenteredTranslateParam::Y, (arr[3] as _, arr[4] as _))),
+			3 => Some((ScalingCenteredTranslateParam::Both, (arr[3] as _, arr[4] as _))),
+			_ => panic!("Invalid Smart Scaling parameter"),
+		}))
 	}
 }
 

@@ -8,7 +8,7 @@ use crate::FerriciaResult;
 use gl::{BindTexture, GenTextures, GenerateMipmap, TexImage2D, TexParameteri, ARRAY_BUFFER, CLAMP_TO_EDGE, ELEMENT_ARRAY_BUFFER, LINES, NEAREST, NEAREST_MIPMAP_LINEAR, RGBA, STATIC_DRAW, TEXTURE_2D, TEXTURE_MAG_FILTER, TEXTURE_MIN_FILTER, TEXTURE_WRAP_S, TEXTURE_WRAP_T, TRIANGLES, UNSIGNED_BYTE};
 use image::imageops::flip_vertical;
 use image::ImageReader;
-use nalgebra_glm::{identity, ortho, scaling, vec3, TMat4};
+use nalgebra_glm::{identity, ortho, scaling, translate, vec3, TMat4};
 use ordermap::OrderSet;
 use sdl3::pixels::Color;
 use std::borrow::Cow;
@@ -451,7 +451,8 @@ impl PartialEq for &dyn PrimModelTransform {
 impl Eq for &dyn PrimModelTransform {}
 
 /// Smart-Scaled Mesh depending on the current window size.
-/// This transformation works well for a coordinate system with origin in a corner.
+/// This transformation works well for a coordinate system with origin in a corner
+/// and the object untranslated.
 ///
 /// The scale factor is calculated by: `min(windowWidth / referenceWidth, windowHeight / referenceHeight)`,
 /// where the reference size is decided by the dimensions of the window expected.
@@ -459,11 +460,18 @@ impl Eq for &dyn PrimModelTransform {}
 /// The matrix consists of only one scaling matrix.
 pub(crate) struct SmartScaling {
 	reference_size: (u32, u32),
+	param: Option<(ScalingCenteredTranslateParam, (u32, u32))>,
+}
+
+pub(crate) enum ScalingCenteredTranslateParam {
+	X,
+	Y,
+	Both,
 }
 
 impl SmartScaling {
-	pub(crate) fn new(reference_size: (u32, u32)) -> Self {
-		Self { reference_size }
+	pub(crate) fn new(reference_size: (u32, u32), param: Option<(ScalingCenteredTranslateParam, (u32, u32))>) -> Self {
+		Self { reference_size, param }
 	}
 }
 
@@ -474,7 +482,36 @@ impl PrimModelTransform for SmartScaling {
 			drawing_context.window_size.1 as f32 / self.reference_size.1 as f32,
 		);
 		let scaling_vec = vec3(factor, factor, 0.0);
-		scaling(&scaling_vec)
+		let scaling_mat = scaling(&scaling_vec);
+		match &self.param {
+			None => scaling_mat,
+			Some(param) => match param.0 {
+				ScalingCenteredTranslateParam::X => {
+					let vec = vec3(
+						(drawing_context.window_size.0 as f32 - param.1.0 as f32 * factor) / 2.0,
+						0.0,
+						0.0,
+					);
+					translate(&scaling_mat, &vec)
+				},
+				ScalingCenteredTranslateParam::Y => {
+					let vec = vec3(
+						0.0,
+						(drawing_context.window_size.1 as f32 - param.1.1 as f32 * factor) / 2.0,
+						0.0,
+					);
+					translate(&scaling_mat, &vec)
+				},
+				ScalingCenteredTranslateParam::Both => {
+					let vec = vec3(
+						(drawing_context.window_size.0 as f32 - param.1.0 as f32 * factor) / 2.0,
+						(drawing_context.window_size.1 as f32 - param.1.1 as f32 * factor) / 2.0,
+						0.0,
+					);
+					translate(&scaling_mat, &vec)
+				},
+			}
+		}
 	}
 }
 
