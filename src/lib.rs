@@ -116,7 +116,7 @@ fn jni_to_wide_ptr<T: ?Sized>(val: &T) -> jlong {
 }
 
 fn jni_ref_wide_ptr<'a, T: ?Sized>(ptr: jlong) -> &'a T {
-	unsafe { &*from_raw_parts::<T>.call(jni_from_ptr::<(*const (), _)>(ptr)) }
+	unsafe { &*from_raw_parts::<T>.call(*jni_ref_ptr::<(*const (), _)>(ptr)) }
 }
 
 macro_rules! jni_to_destructed_ptr {
