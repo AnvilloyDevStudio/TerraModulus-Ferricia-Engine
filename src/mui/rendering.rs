@@ -9,9 +9,9 @@ use crate::mui::ogl::{buf_obj_with_data, compile_shader, draw_arrays, draw_eleme
 use crate::mui::window::WindowHandle;
 use crate::FerriciaResult;
 use gl::{BindTexture, GenTextures, GenerateMipmap, TexImage2D, TexParameteri, ARRAY_BUFFER, CLAMP_TO_EDGE, ELEMENT_ARRAY_BUFFER, LINES, NEAREST, NEAREST_MIPMAP_LINEAR, RGBA, STATIC_DRAW, TEXTURE_2D, TEXTURE_MAG_FILTER, TEXTURE_MIN_FILTER, TEXTURE_WRAP_S, TEXTURE_WRAP_T, TRIANGLES, UNSIGNED_BYTE};
-use image::imageops::{flip_vertical, flip_vertical_in_place};
+use image::imageops::flip_vertical_in_place;
 use image::ImageReader;
-use nalgebra_glm::{identity, ortho, scaling, translate, translation, vec3, TMat4};
+use nalgebra_glm::{identity, ortho, scaling, translation, vec2, vec2_to_vec3, vec3, TMat4, TVec2};
 use ordermap::OrderSet;
 use sdl3::pixels::Color;
 use std::borrow::Cow;
@@ -141,6 +141,7 @@ pub(crate) struct GeoProgram {
 	id: u32,
 	model_pos: u32,
 	projection_pos: u32,
+	filter_pos: u32,
 }
 
 impl GeoProgram {
@@ -152,6 +153,7 @@ impl GeoProgram {
 		Ok(Self {
 			model_pos: get_uniform_location(id, "model"),
 			projection_pos: get_uniform_location(id, "projection"),
+			filter_pos: get_uniform_location(id, "filter"),
 			id,
 		})
 	}
@@ -171,6 +173,8 @@ impl GuiProgram for GeoProgram {
 		use_uniform_mat_4(self.projection_pos, proj);
 		let model = set.eval_model_mat(&drawing_context);
 		use_uniform_mat_4(self.model_pos, model.as_ref());
+		let filter = set.eval_filter_mat(&drawing_context);
+		use_uniform_mat_4(self.filter_pos, filter.as_ref());
 	}
 }
 
@@ -275,7 +279,6 @@ pub(crate) struct DrawableSet<'a> {
 	// id: OpaqueId,
 	prim: Box<dyn RenderPrimitive>,
 	models: OrderSet<&'a dyn PrimModelTransform>,
-	/// Usable only for [`Mesh`]es.
 	filters: OrderSet<&'a dyn PrimColorFilter>,
 	// _pin: PhantomPinned,
 }
@@ -297,19 +300,19 @@ impl<'a> DrawableSet<'a> {
 		unsafe { &mut *(self.prim.as_mut() as *mut dyn RenderPrimitive as *mut T) }
 	}
 
-	pub(crate) fn add_model_transform(&mut self, transform: &'a dyn PrimModelTransform) {
+	pub(crate) fn add_model_transform<'b: 'a>(&mut self, transform: &'b dyn PrimModelTransform) {
 		self.models.insert(transform);
 	}
 
-	pub(crate) fn remove_model_transform(&mut self, transform: &'a dyn PrimModelTransform) {
+	pub(crate) fn remove_model_transform<'b: 'a>(&mut self, transform: &'b dyn PrimModelTransform) {
 		self.models.remove(&transform);
 	}
 
-	pub(crate) fn add_filter_transform(&mut self, filter: &'a dyn PrimColorFilter) {
+	pub(crate) fn add_filter_transform<'b: 'a>(&mut self, filter: &'b dyn PrimColorFilter) {
 		self.filters.insert(filter);
 	}
 
-	pub(crate) fn remove_filter_transform(&mut self, filter: &'a dyn PrimColorFilter) {
+	pub(crate) fn remove_filter_transform<'b: 'a>(&mut self, filter: &'b dyn PrimColorFilter) {
 		self.filters.remove(&filter);
 	}
 
@@ -383,6 +386,51 @@ impl RenderPrimitive for SimpleLineGeom {
 }
 
 impl Geom for SimpleLineGeom {}
+
+pub(crate) struct SimpleRectGeom {
+	vao: u32,
+	vbo: u32,
+	ebo: u32,
+}
+
+impl SimpleRectGeom {
+	const INDICES: [u32; 6] = [
+		0, 1, 2, // first triangle
+		0, 2, 3  // second triangle
+	];
+
+	const NUM_ELEMENTS: u32 = 6;
+
+	/// `[x0, y0, x1, y1]`; (0, 0) as bottom-left
+	pub(crate) fn new(points: [f32; 4], color: Color) -> Self {
+		let vao = with_new_vert_arr();
+		let [vbo, ebo] = gen_buf_objs();
+		let vertices = [
+			// positions
+			points[0], points[3], // top-left
+			points[0], points[1], // bottom-left
+			points[2], points[1], // bottom-right
+			points[2], points[3], // top-right
+		];
+		buf_obj_with_data(ARRAY_BUFFER, vbo, &vertices, STATIC_DRAW);
+		buf_obj_with_data(ELEMENT_ARRAY_BUFFER, ebo, &Self::INDICES, STATIC_DRAW);
+		vert_attr_arr(0, 2, NumType::Float, 2, 0); // Position
+		vert_attr(1, VertexAttrVariant::UbyteNorm4.call(color.rgba())); // Color
+		Self { vao, vbo, ebo } // Note: Binding to the VAO remains
+	}
+}
+
+impl RenderPrimitive for SimpleRectGeom {
+	fn vao(&self) -> u32 {
+		self.vao
+	}
+
+	fn draw(&self) {
+		draw_elements(TRIANGLES, Self::NUM_ELEMENTS);
+	}
+}
+
+impl Geom for SimpleRectGeom {}
 
 trait Mesh : RenderPrimitive {
 
@@ -514,6 +562,48 @@ impl PrimModelTransform for SmartScaling {
 				},
 			}
 		}
+	}
+}
+
+pub(crate) struct FullScaling {
+	reference_size: (u32, u32),
+}
+
+impl FullScaling {
+	pub(crate) fn new(reference_size: (u32, u32)) -> Self {
+		Self { reference_size }
+	}
+}
+
+impl PrimModelTransform for FullScaling {
+	fn model_matrix(&self, drawing_context: &DrawingContext) -> TMat4<f32> {
+		let scaling_vec = vec3(
+			drawing_context.window_size.0 as f32 / self.reference_size.0 as f32,
+			drawing_context.window_size.1 as f32 / self.reference_size.1 as f32,
+			0.0
+		);
+		scaling(&scaling_vec)
+	}
+}
+
+pub(crate) struct SimpleTranslation {
+	vec: TVec2<f32>,
+}
+
+impl SimpleTranslation {
+	pub(crate) fn new(x: f32, y: f32) -> Self {
+		Self { vec: vec2(x, y) }
+	}
+	
+	pub(crate) fn set_vec(&mut self, vec: TVec2<f32>) {
+		self.vec = vec;
+	}
+}
+
+impl PrimModelTransform for SimpleTranslation {
+	fn model_matrix(&self, _drawing_context: &DrawingContext) -> TMat4<f32> {
+		let vec = vec2_to_vec3(&self.vec);
+		translation(&vec)
 	}
 }
 

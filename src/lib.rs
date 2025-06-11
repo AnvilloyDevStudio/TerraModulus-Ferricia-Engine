@@ -10,22 +10,30 @@ mod mui;
 mod util;
 
 #[cfg(feature = "client")]
-use crate::mui::rendering::CanvasHandle;
-#[cfg(feature = "client")]
-use crate::mui::rendering::SpriteMesh;
-#[cfg(feature = "client")]
-use crate::mui::rendering::{DrawableSet, GeoProgram, SimpleLineGeom, TexProgram};
-#[cfg(feature = "client")]
-use crate::mui::rendering::{PrimModelTransform, ScalingCenteredTranslateParam, SmartScaling};
-#[cfg(feature = "client")]
-use crate::mui::window::WindowHandle;
-#[cfg(feature = "client")]
-use crate::mui::MuiEvent;
-#[cfg(feature = "client")]
-use crate::mui::SdlHandle;
+use crate::mui::{
+	window::WindowHandle,
+	rendering::{
+		PrimModelTransform,
+		ScalingCenteredTranslateParam,
+		SmartScaling,
+		DrawableSet,
+		GeoProgram,
+		SimpleLineGeom,
+		TexProgram,
+		clear_canvas,
+		set_clear_color,
+		AlphaFilter,
+		PrimColorFilter,
+		SpriteMesh,
+		CanvasHandle,
+		SimpleTranslation,
+	},
+	MuiEvent,
+	SdlHandle,
+};
 use derive_more::From;
-use jni::objects::{JClass, JIntArray, JObject, JString, ReleaseMode};
-use jni::sys::{jbyte, jfloat, jint, jintArray, jlong, jlongArray, jobjectArray, jsize, jstring};
+use jni::objects::{JClass, JFloatArray, JIntArray, JObject, JString, ReleaseMode};
+use jni::sys::{jbyte, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, jobjectArray, jsize, jstring};
 use jni::JNIEnv;
 use paste::paste;
 use sdl3::pixels::Color;
@@ -34,9 +42,8 @@ use std::cell::Cell;
 use std::env::set_var;
 use std::fmt::Display;
 use std::panic::{catch_unwind, take_hook, AssertUnwindSafe};
-use std::ptr::{from_raw_parts, null, Pointee};
-#[cfg(feature = "client")]
-use crate::mui::rendering::{clear_canvas, set_clear_color, AlphaFilter, PrimColorFilter};
+use std::ptr::{from_raw_parts, null};
+use crate::mui::rendering::{FullScaling, SimpleRectGeom};
 
 #[derive(From)]
 struct FerriciaError(String);
@@ -108,7 +115,7 @@ fn jni_to_wide_ptr<T: ?Sized>(val: &T) -> jlong {
 	jni_to_ptr((val as *const T).to_raw_parts())
 }
 
-fn jni_from_wide_ptr<'a, T: ?Sized>(ptr: jlong) -> &'a T {
+fn jni_ref_wide_ptr<'a, T: ?Sized>(ptr: jlong) -> &'a T {
 	unsafe { &*from_raw_parts::<T>.call(jni_from_ptr::<(*const (), _)>(ptr)) }
 }
 
@@ -162,6 +169,16 @@ macro_rules! run_catch {
 
 fn jni_get_string(env: &mut JNIEnv, src: JString) -> String {
 	env.get_string(&src).expect("Cannot get Java string").into()
+}
+
+macro_rules! jni_get_arr {
+	($out:ident = $arr:ty; $var:ident, $env:ident) => {
+		let $var = unsafe { <$arr>::from_raw($var) };
+		let $out = unsafe {
+			$env.get_array_elements(&$var, ReleaseMode::NoCopyBack)
+				.expect("Cannot get Java array elements")
+		};
+	};
 }
 
 // #[allow(non_snake_case)]
@@ -798,6 +815,20 @@ jni_ferricia! {
 }
 
 jni_ferricia! {
+	client:Mui.newSimpleRectGeom(mut env: JNIEnv, class: JClass, data: jintArray) -> jlong {
+		let data = unsafe { JIntArray::from_raw(data) };
+		let arr = unsafe {
+			env.get_array_elements(&data, ReleaseMode::NoCopyBack)
+				.expect("Cannot get Java array elements")
+		};
+		jni_to_ptr(DrawableSet::new(SimpleRectGeom::new(
+			[arr[0] as f32, arr[1] as f32, arr[2] as f32, arr[3] as f32],
+			Color::RGBA(arr[4] as u8, arr[5] as u8, arr[6] as u8, arr[7] as u8),
+		)))
+	}
+}
+
+jni_ferricia! {
 	client:Mui.newSpriteMesh(mut env: JNIEnv, class: JClass, data: jintArray) -> jlong {
 		let data = unsafe { JIntArray::from_raw(data) };
 		let arr = unsafe {
@@ -810,11 +841,7 @@ jni_ferricia! {
 
 jni_ferricia! {
 	client:Mui.modelSmartScaling(mut env: JNIEnv, class: JClass, data: jintArray) -> jlongArray {
-		let data = unsafe { JIntArray::from_raw(data) };
-		let arr = unsafe {
-			env.get_array_elements(&data, ReleaseMode::NoCopyBack)
-				.expect("Cannot get Java array elements")
-		};
+		jni_get_arr!(arr = JIntArray; data, env);
 		jni_to_destructed_ptr!(SmartScaling::new((arr[0] as _, arr[1] as _), match arr[2] {
 			0 => None,
 			1 => Some((ScalingCenteredTranslateParam::X, (arr[3] as _, arr[4] as _))),
@@ -822,6 +849,20 @@ jni_ferricia! {
 			3 => Some((ScalingCenteredTranslateParam::Both, (arr[3] as _, arr[4] as _))),
 			_ => panic!("Invalid Smart Scaling parameter"),
 		}), dyn PrimModelTransform, env);
+	}
+}
+
+jni_ferricia! {
+	client:Mui.modelFullScaling(mut env: JNIEnv, class: JClass, data: jintArray) -> jlongArray {
+		jni_get_arr!(arr = JIntArray; data, env);
+		jni_to_destructed_ptr!(FullScaling::new((arr[0] as _, arr[1] as _)), dyn PrimModelTransform, env);
+	}
+}
+
+jni_ferricia! {
+	client:Mui.modelSimpleTranslation(mut env: JNIEnv, class: JClass, data: jfloatArray) -> jlongArray {
+		jni_get_arr!(arr = JFloatArray; data, env);
+		jni_to_destructed_ptr!(SimpleTranslation::new(arr[0], arr[1]), dyn PrimModelTransform, env);
 	}
 }
 
@@ -839,25 +880,25 @@ jni_ferricia! {
 
 jni_ferricia! {
 	client:Mui.addModelTransform(mut env: JNIEnv, class: JClass, set_handle: jlong, model_handle: jlong) {
-		jni_ref_ptr::<DrawableSet>(set_handle).add_model_transform(jni_from_wide_ptr(model_handle))
+		jni_ref_ptr::<DrawableSet>(set_handle).add_model_transform(jni_ref_wide_ptr(model_handle))
 	}
 }
 
 jni_ferricia! {
 	client:Mui.removeModelTransform(mut env: JNIEnv, class: JClass, set_handle: jlong, model_handle: jlong) {
-		jni_ref_ptr::<DrawableSet>(set_handle).remove_model_transform(jni_from_wide_ptr(model_handle))
+		jni_ref_ptr::<DrawableSet>(set_handle).remove_model_transform(jni_ref_wide_ptr(model_handle))
 	}
 }
 
 jni_ferricia! {
 	client:Mui.addColorFilter(mut env: JNIEnv, class: JClass, set_handle: jlong, filter_handle: jlong) {
-		jni_ref_ptr::<DrawableSet>(set_handle).add_filter_transform(jni_from_wide_ptr(filter_handle))
+		jni_ref_ptr::<DrawableSet>(set_handle).add_filter_transform(jni_ref_wide_ptr(filter_handle))
 	}
 }
 
 jni_ferricia! {
 	client:Mui.removeColorFilter(mut env: JNIEnv, class: JClass, set_handle: jlong, filter_handle: jlong) {
-		jni_ref_ptr::<DrawableSet>(set_handle).remove_filter_transform(jni_from_wide_ptr(filter_handle))
+		jni_ref_ptr::<DrawableSet>(set_handle).remove_filter_transform(jni_ref_wide_ptr(filter_handle))
 	}
 }
 
