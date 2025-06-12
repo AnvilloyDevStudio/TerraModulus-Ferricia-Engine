@@ -357,6 +357,7 @@ trait Geom : RenderPrimitive {
 pub(crate) struct SimpleLineGeom {
 	vao: u32,
 	vbo: u32,
+	color: Color,
 }
 
 impl SimpleLineGeom {
@@ -370,8 +371,7 @@ impl SimpleLineGeom {
 		];
 		buf_obj_with_data(ARRAY_BUFFER, vbo, &vertices, STATIC_DRAW);
 		vert_attr_arr(0, 2, NumType::Float, 2, 0); // Position
-		vert_attr(1, VertexAttrVariant::UbyteNorm4.call(color.rgba())); // Color
-		Self { vao, vbo } // Note: Binding to the VAO remains
+		Self { vao, vbo, color } // Note: Binding to the VAO remains
 	}
 }
 
@@ -381,6 +381,7 @@ impl RenderPrimitive for SimpleLineGeom {
 	}
 
 	fn draw(&self) {
+		vert_attr(1, VertexAttrVariant::UbyteNorm4.call(self.color.rgba())); // Color
 		draw_arrays(LINES, Self::NUM_VERTICES);
 	}
 }
@@ -391,6 +392,7 @@ pub(crate) struct SimpleRectGeom {
 	vao: u32,
 	vbo: u32,
 	ebo: u32,
+	color: Color,
 }
 
 impl SimpleRectGeom {
@@ -415,8 +417,7 @@ impl SimpleRectGeom {
 		buf_obj_with_data(ARRAY_BUFFER, vbo, &vertices, STATIC_DRAW);
 		buf_obj_with_data(ELEMENT_ARRAY_BUFFER, ebo, &Self::INDICES, STATIC_DRAW);
 		vert_attr_arr(0, 2, NumType::Float, 2, 0); // Position
-		vert_attr(1, VertexAttrVariant::UbyteNorm4.call(color.rgba())); // Color
-		Self { vao, vbo, ebo } // Note: Binding to the VAO remains
+		Self { vao, vbo, ebo, color } // Note: Binding to the VAO remains
 	}
 }
 
@@ -426,6 +427,7 @@ impl RenderPrimitive for SimpleRectGeom {
 	}
 
 	fn draw(&self) {
+		vert_attr(1, VertexAttrVariant::UbyteNorm4.call(self.color.rgba())); // Color
 		draw_elements(TRIANGLES, Self::NUM_ELEMENTS);
 	}
 }

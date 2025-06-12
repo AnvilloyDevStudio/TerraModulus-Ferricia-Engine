@@ -802,11 +802,7 @@ jni_ferricia! {
 
 jni_ferricia! {
 	client:Mui.newSimpleLineGeom(mut env: JNIEnv, class: JClass, data: jintArray) -> jlong {
-		let data = unsafe { JIntArray::from_raw(data) };
-		let arr = unsafe {
-			env.get_array_elements(&data, ReleaseMode::NoCopyBack)
-				.expect("Cannot get Java array elements")
-		};
+		jni_get_arr!(arr = JIntArray; data, env);
 		jni_to_ptr(DrawableSet::new(SimpleLineGeom::new(
 			[(arr[0] as f32, arr[1] as f32), (arr[2] as f32, arr[3] as f32)],
 			Color::RGBA(arr[4] as u8, arr[5] as u8, arr[6] as u8, arr[7] as u8),
@@ -816,11 +812,7 @@ jni_ferricia! {
 
 jni_ferricia! {
 	client:Mui.newSimpleRectGeom(mut env: JNIEnv, class: JClass, data: jintArray) -> jlong {
-		let data = unsafe { JIntArray::from_raw(data) };
-		let arr = unsafe {
-			env.get_array_elements(&data, ReleaseMode::NoCopyBack)
-				.expect("Cannot get Java array elements")
-		};
+		jni_get_arr!(arr = JIntArray; data, env);
 		jni_to_ptr(DrawableSet::new(SimpleRectGeom::new(
 			[arr[0] as f32, arr[1] as f32, arr[2] as f32, arr[3] as f32],
 			Color::RGBA(arr[4] as u8, arr[5] as u8, arr[6] as u8, arr[7] as u8),
@@ -830,11 +822,7 @@ jni_ferricia! {
 
 jni_ferricia! {
 	client:Mui.newSpriteMesh(mut env: JNIEnv, class: JClass, data: jintArray) -> jlong {
-		let data = unsafe { JIntArray::from_raw(data) };
-		let arr = unsafe {
-			env.get_array_elements(&data, ReleaseMode::NoCopyBack)
-				.expect("Cannot get Java array elements")
-		};
+		jni_get_arr!(arr = JIntArray; data, env);
 		jni_to_ptr(DrawableSet::new(SpriteMesh::new([arr[0] as _, arr[1] as _, arr[2] as _, arr[3] as _])))
 	}
 }
