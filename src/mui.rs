@@ -75,6 +75,11 @@ impl SdlHandle {
 		})
 	}
 
+	pub(crate) fn get_mouse_pos(&self) -> (f32, f32) {
+		let state = self.event_pump.mouse_state();
+		(state.x(), state.y())
+	}
+
 	pub(crate) fn poll(&mut self) -> Vec<MuiEvent> {
 		self.event_pump.pump_events();
 		let mut events = Vec::new();

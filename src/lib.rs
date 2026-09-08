@@ -14,10 +14,14 @@ pub mod phy;
 
 #[cfg(feature = "client")]
 use crate::mui::{
+	MuiEvent,
+	SdlHandle,
+	font::{FontManager, GlyphManager, TextBuffer, TextColor, TextMetrics, TextRenderer, TextRenderingContext},
 	rendering::{
 		AlphaFilter,
 		CanvasHandle,
 		DrawableSet,
+		GeneralTransform,
 		GeoProgram,
 		PrimColorFilter,
 		PrimModelTransform,
@@ -25,18 +29,17 @@ use crate::mui::{
 		SimpleRectGeom,
 		SpriteMesh,
 		TexProgram,
-		GeneralTransform,
+		TxtProgram,
 	},
-	rendering3d::{Camera3d, DrawableWorldObj, GwrGeoProgram, SimpleMesh3dGeom, Render3DEfx, Render3dPrimitive},
+	rendering3d::{Camera3d, DrawableWorldObj, GwrGeoProgram, Render3DEfx, Render3dPrimitive, SimpleMesh3dGeom},
 	window::WindowHandle,
-	MuiEvent,
-	SdlHandle,
 };
 use crate::phy::{OdeBox, OdeMass, OdeNonPlaceableMarker, OdePlaceableGeom, OdePlaceableMarker, OdeSpace, PhyBody, PhyCollisionManager, PhyEnv, PhyRawGeom, PhyRawGeomPlaceable, PhyWorld};
+use bytemuck::cast_slice;
 use derive_more::From;
+use jni::JNIEnv;
 use jni::objects::{JByteArray, JClass, JDoubleArray, JFloatArray, JIntArray, JObject, JString, ReleaseMode};
 use jni::sys::{jboolean, jbyte, jbyteArray, jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, jobjectArray, jsize, jstring};
-use jni::JNIEnv;
 use nalgebra_glm::{DQuat, DVec3, DVec4, Vec2, Vec3};
 use paste::paste;
 use sdl3::pixels::Color;
@@ -44,11 +47,8 @@ use std::backtrace::Backtrace;
 use std::cell::Cell;
 use std::env::set_var;
 use std::fmt::Display;
-use std::panic::{catch_unwind, take_hook, AssertUnwindSafe};
+use std::panic::{AssertUnwindSafe, catch_unwind, take_hook};
 use std::ptr::{from_raw_parts, null};
-use bytemuck::cast_slice;
-use crate::mui::font::{FontAttrs, FontManager, GlyphManager, TextBuffer, TextColor, TextMetrics, TextRenderer, TextRenderingContext};
-use crate::mui::rendering::TxtProgram;
 
 #[derive(From)]
 struct FerriciaError(String);
@@ -337,6 +337,15 @@ jni_ferricia! {
 		env.new_string(jni_ref_ptr::<WindowHandle>(handle).gl_handle().full_gl_version())
 			.expect("Cannot create Java string")
 			.into_raw()
+	}
+}
+
+jni_ferricia! {
+	client:Mui.getMousePos(mut env: JNIEnv, class: JClass, handle: jlong) -> jfloatArray {
+		let pos = jni_ref_ptr::<SdlHandle>(handle).get_mouse_pos();
+		let a = env.new_float_array(2).expect("Cannot create Java array");
+		env.set_float_array_region(&a, 0, &[pos.0, pos.1]).unwrap();
+		a.into_raw()
 	}
 }
 
